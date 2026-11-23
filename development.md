@@ -1,97 +1,122 @@
-# Development & Testing Guide (Phase 1)
+# Development & Testing Guide (Phase 2)
 
-This guide provides step-by-step instructions to set up, run, and test **Phase 1 (Calling & Voice Pipeline Foundation)** of the Urdu Hospital Receptionist Voice Agent.
+This guide provides step-by-step instructions to set up, run, and test **Phase 2 (Full-Stack Hospital Operations & Agentic Urdu Voice Receptionist)**.
 
 ---
 
 ## 1. Prerequisites
 - **Python 3.10+**
+- **Node.js 18+ & npm**
 - **Groq API Key**: Free/instant access at [console.groq.com](https://console.groq.com/keys)
 - **Vapi Account**: Sign up at [dashboard.vapi.ai](https://dashboard.vapi.ai)
 - **ngrok**: Installed and authenticated ([ngrok.com](https://ngrok.com))
 
 ---
 
-## 2. Virtual Environment Setup & Dependencies
+## 2. Setup & Installation
 
-### Windows (PowerShell or Command Prompt):
+### Backend Setup:
 ```powershell
-# 1. Create the virtual environment
-python -m venv .venv
-
-# 2. Activate the virtual environment
+# 1. Activate Python virtual environment
 .\.venv\Scripts\activate
 
-# 3. Upgrade pip and install requirements
-python -m pip install --upgrade pip
+# 2. Install dependencies (if not already installed)
 pip install -r requirements.txt
 ```
 
-### macOS / Linux:
-```bash
-# 1. Create the virtual environment
-python3 -m venv .venv
+### Frontend Setup:
+```powershell
+# 1. Navigate to frontend folder
+cd frontend
 
-# 2. Activate the virtual environment
-source .venv/bin/activate
+# 2. Install React dependencies
+npm install
 
-# 3. Upgrade pip and install requirements
-python3 -m pip install --upgrade pip
-pip install -r requirements.txt
+# 3. Build production bundle (or run Vite dev server)
+npm run build
 ```
 
 ---
 
-## 3. Environment Configuration (`.env`)
+## 3. Environment Configuration
 
-Copy `.env.example` to `.env` if not already done:
-```bash
-cp .env.example .env
-```
-
-Open `.env` and fill in your keys:
+### Root `.env` (FastAPI backend):
 ```env
-# Groq API Key (powers llama-3.3-70b-versatile)
-GROQ_API_KEY=gsk_your_actual_groq_key_here
-
-# Vapi Credentials
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 VAPI_PUBLIC_KEY=your_vapi_public_key_here
 VAPI_PRIVATE_KEY=your_vapi_private_key_here
-
-# Optional: Pre-configured Assistant ID from Vapi Dashboard
 VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
-
-# Server Settings
 PORT=8000
 HOST=0.0.0.0
+```
 
-# Recommended: shared secret Vapi must send on /chat/completions and /webhook/vapi
-VAPI_WEBHOOK_SECRET=change_me_to_a_long_random_string
+### Frontend `frontend/.env`:
+```env
+VITE_VAPI_PUBLIC_KEY=your_vapi_public_key_here
+VITE_VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
+VITE_NGROK_URL=https://your-active-subdomain.ngrok-free.dev
 ```
 
 ---
 
-## 4. Run the FastAPI Server
+## 4. Running the System
 
-Start the local server with auto-reload:
-```bash
-uvicorn main:app --reload --port 8000
+You have two options for running the project:
+
+### Option A: Unified FastAPI Production Mode (Recommended)
+FastAPI serves both the REST API endpoints, the SSE streaming Custom LLM, and the compiled React frontend directly:
+
+```powershell
+# In root directory:
+.\.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
-Verify the server is healthy by visiting:
-- UI Simulator: [http://localhost:8000](http://localhost:8000)
-- Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+Open **[http://localhost:8000](http://localhost:8000)** in your browser!
+
+### Option B: React Vite Dev Server (Hot-Reloading UI)
+Run both backend and frontend separately:
+
+1. **Terminal 1 (Backend):**
+   ```powershell
+   .\.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
+2. **Terminal 2 (Frontend):**
+   ```powershell
+   cd frontend
+   npm run dev
+   ```
+Open **[http://localhost:5173](http://localhost:5173)** in your browser. (All API calls to `/api` and `/chat/completions` proxy automatically to port 8000).
+
+3. **Terminal 3 (ngrok for Voice Calls):**
+   ```powershell
+   ngrok http 8000
+   ```
+   Ensure your active ngrok URL matches `VITE_NGROK_URL` in `frontend/.env` or in the call drawer.
 
 ---
 
-## 5. Expose Local Port 8000 via ngrok
+## 5. Live Features to Test
 
-Open a new terminal window and run:
-```bash
-ngrok http 8000
-```
-Copy your forwarding HTTPS URL (e.g., `https://abcdef1234.ngrok-free.app`).
+1. **Doctors & Slots Tab:**
+   - Filter by specialty (*Cardiology, Dermatology, Pediatrics, Orthopedics, General Physician*).
+   - Select dates (*Today, Tomorrow, +2 Days, +3 Days*).
+   - Click any green **Available Slot** chip to launch the instant booking modal.
+   - Watch slots switch between available and booked in real time (3-second auto-sync).
 
-> **Note:** Whenever you restart ngrok, update the URL in your Vapi configuration.
+2. **Appointments Ledger Tab:**
+   - Search by Patient Name, Phone, or Booking Reference (`APT-XXXX`).
+   - Filter by Doctor or Booking Status (*Confirmed, Cancelled*).
+   - Click **Reschedule** on any booking to assign a new date/slot.
+   - Click **Cancel** to immediately release the slot back into the available pool.
+
+3. **Urdu AI Voice Receptionist (Persistent Call Drawer):**
+   - Click **Call Urdu Agent** at top-right to open the live call drawer.
+   - Click **Start Call** to test conversational Urdu appointment booking:
+     - *"السلام علیکم، مجھے جلد کے ڈاکٹر کو دکھانا ہے"* (Dr. Bilal Ahmed - Dermatologist)
+     - *"ڈاکٹر بلال کے پاس کل کیا وقت دستیاب ہے؟"* (Checks live SQLite slots)
+     - *"میرا نام علی ہے، 10:30 بجے بک کر دیں"* (Confirms details & generates `APT-XXXX`)
+   - Notice the Doctors and Appointments ledger updates on screen live while you speak!
 
 ---
 
